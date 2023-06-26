@@ -23,6 +23,16 @@ const months = [
   'Dec'
 ]
 
+const daysOfTheWeek = [
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+  'Sun'
+]
+
 interface IDateCellItem {
   date: number;
   month: number;
@@ -51,7 +61,7 @@ const getPreviousMonthDays = (year: number, month: number) => {
 
   const [cellYear, cellMonth] = month === 0 ? [year -1, 11] : [year, month -1]
 
-  for (let i = 0; i < prevMonthCellsAmount; i ++) {
+  for (let i = prevMonthCellsAmount - 1; i >= 0; i --) {
     dateCells.push({
       year: cellYear,
       month: cellMonth,
@@ -114,7 +124,7 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
 
   const [year, month, day, hour, minute] = useMemo(() => {
     const currentYear = value.getFullYear()
-    const currentMonth = months[value.getMonth()]
+    const currentMonth = value.getMonth()
     const currentDay = value.getDate()
     const currentHour = value.getHours()
     const currentMinute = value.getMinutes()
@@ -135,31 +145,58 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
   }, [fieldYear, fieldMonth])
 
   const nextYear = () => {
-
+    setFieldYear(fieldYear + 1)
   }
 
   const prevYear = () => {
-
+    setFieldYear(fieldYear - 1)
   }
 
   const nextMonth = () => {
-
+    if (fieldMonth === 11) {
+      setFieldMonth(0)
+      setFieldYear(fieldYear + 1)
+    } else {
+      setFieldMonth(fieldMonth + 1)
+    }
   }
 
   const prevMonth = () => {
+    if (fieldMonth === 0) {
+      setFieldMonth(11)
+      setFieldYear(fieldYear - 1)
+    } else {
+      setFieldMonth(fieldMonth - 1)
+    }
+  }
 
+  const getMinute = (minute: number) => {
+    if (minute < 10) {
+      return `0${minute}`
+    } else {
+      return minute
+    }
   }
 
   return (
     <div>
       DatePicker
       <div>
-        {day} {month} {year} {hour}:{minute}
+        Сейчас {day} {month} {year} {hour}:{getMinute(minute)}
+      </div>
+      <div className={styles.buttons}>
+        <button className={styles.button} onClick={prevYear}>Prev Year</button>
+        <button className={styles.button} onClick={prevMonth}>Prev Month</button>
+        <button className={styles.button} onClick={nextMonth}>Next Month</button>
+        <button className={styles.button} onClick={nextYear}>Next Year</button>
       </div>
       <div className={styles.calendar}>
+        {daysOfTheWeek.map(weekDay => (
+          <div className={styles.date}>{weekDay}</div>
+        ))}
         {dateCells.map(cell => {
-
-          return <div className={styles.date}>{cell.date}</div>
+          const isCurrentDay = cell.year === year && cell.month === month && cell.date === day
+          return <div className={isCurrentDay ? styles.dateCurrent : styles.date}>{cell.date}</div>
         })}
       </div>
     </div>

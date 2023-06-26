@@ -2,12 +2,42 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(7, 1fr);
-  width: 700px;
-  height: 700px;
-  border: 1px solid lightgray;
+  width: 600px;
+  height: 600px;
+  border-top: 1px solid lightgray;
+  border-left: 1px solid lightgray;
 }
 
 .date {
+  display: flex;
+  justify-content: flex-end;
   border-right: 1px solid lightgray;
   border-bottom: 1px solid lightgray;
+  padding: 8px;
+}
+
+.dateCurrent {
+  display: flex;
+  justify-content: flex-end;
+  border-right: 1px solid lightgray;
+  border-bottom: 1px solid lightgray;
+  padding: 8px;
+  color: red;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.button {
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: lightgray;
+  cursor: pointer;
+
+  &:active {
+    background: #f3f1f1;
+  }
 }
