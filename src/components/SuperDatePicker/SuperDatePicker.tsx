@@ -5,8 +5,11 @@ const SuperDatePicker = () => {
 
   const [date, setDate] = useState(() => new Date())
 
+  console.log(date)
+
   return (
     <div>
+
       <DatePicker value={date} onChange={setDate} />
     </div>
   );

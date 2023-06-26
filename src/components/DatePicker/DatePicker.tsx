@@ -144,6 +144,10 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
     return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays]
   }, [fieldYear, fieldMonth])
 
+  const onDateSelect = (item: IDateCellItem) => {
+    onChange(new Date(item.year, item.month, item.date))
+  }
+
   const nextYear = () => {
     setFieldYear(fieldYear + 1)
   }
@@ -192,11 +196,18 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
       </div>
       <div className={styles.calendar}>
         {daysOfTheWeek.map(weekDay => (
-          <div className={styles.date}>{weekDay}</div>
+          <div key={weekDay} className={styles.date}>{weekDay}</div>
         ))}
         {dateCells.map(cell => {
           const isCurrentDay = cell.year === year && cell.month === month && cell.date === day
-          return <div className={isCurrentDay ? styles.dateCurrent : styles.date}>{cell.date}</div>
+          return (
+            <div key={`${cell.date}-${cell.month}-${cell.year}`}
+                 className={isCurrentDay ? styles.dateCurrent : styles.date}
+                 onClick={() => onDateSelect(cell)}
+            >
+            {cell.date}
+          </div>
+          )
         })}
       </div>
     </div>
