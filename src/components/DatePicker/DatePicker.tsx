@@ -37,9 +37,6 @@ interface IDateCellItem {
   date: number;
   month: number;
   year: number;
-
-  isToday?: boolean;
-  isSelected?: boolean;
 }
 
 const getDaysAmountInAMonth = (year: number, month: number) => {
@@ -48,12 +45,26 @@ const getDaysAmountInAMonth = (year: number, month: number) => {
   return nextMonthDate.getDate()
 }
 
+const sundayWeekToMondayWeekDayMap: Record<number, number> = {
+  0: 6,
+  1: 0,
+  2: 1,
+  3: 2,
+  4: 3,
+  5: 4,
+  6: 5,
+}
+
+const getDayOfTheWeek = (date: Date) => {
+  const day = date.getDay()
+
+  return sundayWeekToMondayWeekDayMap[day]
+}
+
 const getPreviousMonthDays = (year: number, month: number) => {
   const currentMonthFirstDay = new Date(year, month, 1)
-  const dayOfTheWeek = currentMonthFirstDay.getDay()
   // сколько нужно взять дней из предыдущего месяца
-  const prevMonthCellsAmount = dayOfTheWeek -1
-
+  const prevMonthCellsAmount = getDayOfTheWeek(currentMonthFirstDay)
   // количество дней в предыдущем месяце
   const daysAmountInPrevMonth = getDaysAmountInAMonth(year, month -1)
 
@@ -75,11 +86,8 @@ const getPreviousMonthDays = (year: number, month: number) => {
 const VISIBLE_CELLS_AMOUNT = 7 * 6
 
 const getNextMonthDays = (year: number, month: number) => {
-  //
   const currentMonthFirstDay = new Date(year, month, 1)
-  const dayOfTheWeek = currentMonthFirstDay.getDay()
-  const prevMonthCellsAmount = dayOfTheWeek -1
-  //
+  const prevMonthCellsAmount = getDayOfTheWeek(currentMonthFirstDay)
 
   const daysAmount = getDaysAmountInAMonth(year, month)
 
@@ -113,6 +121,16 @@ const getCurrentMonthDays = (year: number, month: number, numberOfDays: number) 
 
   return dateCells
 }
+
+const getMinute = (minute: number) => {
+  if (minute < 10) {
+    return `0${minute}`
+  } else {
+    return minute
+  }
+}
+
+
 
 
 const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
@@ -174,19 +192,14 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
     }
   }
 
-  const getMinute = (minute: number) => {
-    if (minute < 10) {
-      return `0${minute}`
-    } else {
-      return minute
-    }
-  }
-
   return (
     <div>
       DatePicker
       <div>
-        Сейчас {day} {month} {year} {hour}:{getMinute(minute)}
+        {months[fieldMonth]} {fieldYear}
+      </div>
+      <div>
+        Выбранная дата: {day} {month} {year} {hour}:{getMinute(minute)}
       </div>
       <div className={styles.buttons}>
         <button className={styles.button} onClick={prevYear}>Prev Year</button>
