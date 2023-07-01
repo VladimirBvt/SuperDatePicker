@@ -23,21 +23,14 @@ interface IDatePickerProps {
 
 const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
   const [showPopup, setShowPopup] = useState(false)
-  const elementRef = useRef<HTMLDivElement>(null)
   const [inputValue, setInputValue] = useState('')
+  const elementRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     setInputValue(getInputValueFromDate(value))
   }, [value])
 
-  // const inputValue = useMemo(() => {
-  //   const date = getValueWithZero(value.getDate())
-  //   const month = getValueWithZero(value.getMonth())
-  //   const year = value.getFullYear()
-  //
-  //   return `${date}-${month}-${year}`
-  // }, [value])
-
+  // outside click effect
   useEffect(() => {
     const element = elementRef.current
 
