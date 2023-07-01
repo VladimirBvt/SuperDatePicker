@@ -1,13 +1,15 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import React, {useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import styles from './DatePicker.module.scss'
-import {IDateCellItem,
+import {
+  IDateCellItem,
   getPreviousMonthDays,
   getCurrentMonthDays,
   getNextMonthDays,
   getMinute,
   getDaysAmountInAMonth,
   months,
-  daysOfTheWeek} from './utils'
+  daysOfTheWeek, getValueWithZero, getInputValueFromDate, isValidDateString
+} from './utils'
 
 interface IDatePickerProps {
   value: Date;
@@ -17,9 +19,24 @@ interface IDatePickerProps {
 }
 
 
-const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
+
+
+const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
   const [showPopup, setShowPopup] = useState(false)
   const elementRef = useRef<HTMLDivElement>(null)
+  const [inputValue, setInputValue] = useState('')
+
+  useLayoutEffect(() => {
+    setInputValue(getInputValueFromDate(value))
+  }, [value])
+
+  // const inputValue = useMemo(() => {
+  //   const date = getValueWithZero(value.getDate())
+  //   const month = getValueWithZero(value.getMonth())
+  //   const year = value.getFullYear()
+  //
+  //   return `${date}-${month}-${year}`
+  // }, [value])
 
   useEffect(() => {
     const element = elementRef.current
@@ -48,86 +65,158 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
 
   }, [])
 
+  const onInputValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value.trim())
+  }
+
   const onFocus = () => {
     setShowPopup(true)
+  }
+
+  const updateValueFromInputValue = () => {
+    if (!isValidDateString(inputValue)) {
+      return
+    }
+
+    const [date, month, year] = inputValue.split('-').map(v => parseInt(v, 10))
+
+    const dateObj = new Date(year, month - 1, date)
+
+    onChange(dateObj)
+  }
+
+  const inputValueDate = useMemo(() => {
+    if (!isValidDateString(inputValue)) {
+      return
+    }
+
+    const [date, month, year] = inputValue.split('-').map(v => parseInt(v, 10))
+
+    const dateObj = new Date(year, month - 1, date)
+
+    return dateObj
+  }, [inputValue])
+
+  const onBlur = () => {
+    updateValueFromInputValue()
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') {
+      return
+    }
+
+    updateValueFromInputValue()
   }
 
   return (
     <div className={styles.datePicker}
          ref={elementRef}
     >
-      <input type="text" onFocus={onFocus} />
+      <input value={inputValue}
+             onChange={onInputValueChange}
+             type="text"
+             onFocus={onFocus}
+             onBlur={onBlur}
+             onKeyDown={onKeyDown}
+      />
 
       {showPopup && (
         <div className={styles.popup}>
-          <DatePickerPopupContent value={value}
+          <DatePickerPopupContent selectedValue={value}
                                   onChange={onChange}
                                   min={min}
                                   max={max}
+                                  inputValueDate={inputValueDate}
           />
-      </div>
+        </div>
       )}
 
     </div>
   )
 }
 
-const DatePickerPopupContent = ({ value, onChange, min, max }: IDatePickerProps) => {
-  const [fieldYear, setFieldYear] = useState(() => value.getFullYear())
-  const [fieldMonth, setFieldMonth] = useState(() => value.getMonth())
-  const [fieldDay, setFieldDay] = useState(() => value.getDate())
-  const [fieldHour, setFieldHour] = useState(() => value.getHours())
-  const [fieldMinute, setFieldMinute] = useState(() => value.getMinutes())
+
+interface IDatePickerPopupContentProps {
+  selectedValue: Date;
+  inputValueDate?: Date;
+  min?: Date;
+  max?: Date;
+  onChange: (value: Date) => void;
+}
+
+const DatePickerPopupContent = ({
+                                  selectedValue,
+                                  inputValueDate,
+                                  onChange,
+                                  min,
+                                  max,
+}: IDatePickerPopupContentProps) => {
+  const [panelYear, setPanelYear] = useState(() => selectedValue.getFullYear())
+  const [panelMonth, setPanelMonth] = useState(() => selectedValue.getMonth())
+  const [panelDay, setPanelDay] = useState(() => selectedValue.getDate())
+  const [panelHour, setPanelHour] = useState(() => selectedValue.getHours())
+  const [panelMinute, setPanelMinute] = useState(() => selectedValue.getMinutes())
+
+  useLayoutEffect(() => {
+    if (!inputValueDate) {
+      return
+    }
+
+    setPanelMonth(inputValueDate.getMonth())
+    setPanelYear(inputValueDate.getFullYear())
+    setPanelDay(inputValueDate.getDate())
+  }, [inputValueDate])
 
   const [year, month, day, hour, minute] = useMemo(() => {
-    const currentYear = value.getFullYear()
-    const currentMonth = value.getMonth()
-    const currentDay = value.getDate()
-    const currentHour = value.getHours()
-    const currentMinute = value.getMinutes()
+    const currentYear = selectedValue.getFullYear()
+    const currentMonth = selectedValue.getMonth()
+    const currentDay = selectedValue.getDate()
+    const currentHour = selectedValue.getHours()
+    const currentMinute = selectedValue.getMinutes()
 
     return [currentYear, currentMonth, currentDay, currentHour, currentMinute]
-  }, [value])
+  }, [selectedValue])
 
   const dateCells = useMemo(() => {
 
-    const daysInMonth = getDaysAmountInAMonth(fieldYear, fieldMonth)
+    const daysInMonth = getDaysAmountInAMonth(panelYear, panelMonth)
 
-    const currentMonthDays = getCurrentMonthDays(fieldYear, fieldMonth, daysInMonth)
+    const currentMonthDays = getCurrentMonthDays(panelYear, panelMonth, daysInMonth)
 
-    const prevMonthDays = getPreviousMonthDays(fieldYear, fieldMonth)
-    const nextMonthDays = getNextMonthDays(fieldYear, fieldMonth)
+    const prevMonthDays = getPreviousMonthDays(panelYear, panelMonth)
+    const nextMonthDays = getNextMonthDays(panelYear, panelMonth)
 
     return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays]
-  }, [fieldYear, fieldMonth])
+  }, [panelYear, panelMonth])
 
   const onDateSelect = (item: IDateCellItem) => {
     onChange(new Date(item.year, item.month, item.date))
   }
 
   const nextYear = () => {
-    setFieldYear(fieldYear + 1)
+    setPanelYear(panelYear + 1)
   }
 
   const prevYear = () => {
-    setFieldYear(fieldYear - 1)
+    setPanelYear(panelYear - 1)
   }
 
   const nextMonth = () => {
-    if (fieldMonth === 11) {
-      setFieldMonth(0)
-      setFieldYear(fieldYear + 1)
+    if (panelMonth === 11) {
+      setPanelMonth(0)
+      setPanelYear(panelYear + 1)
     } else {
-      setFieldMonth(fieldMonth + 1)
+      setPanelMonth(panelMonth + 1)
     }
   }
 
   const prevMonth = () => {
-    if (fieldMonth === 0) {
-      setFieldMonth(11)
-      setFieldYear(fieldYear - 1)
+    if (panelMonth === 0) {
+      setPanelMonth(11)
+      setPanelYear(panelYear - 1)
     } else {
-      setFieldMonth(fieldMonth - 1)
+      setPanelMonth(panelMonth - 1)
     }
   }
 
@@ -135,10 +224,10 @@ const DatePickerPopupContent = ({ value, onChange, min, max }: IDatePickerProps)
     <div>
       DatePicker
       <div>
-        {months[fieldMonth]} {fieldYear}
+        {panelDay} {months[panelMonth]} {panelYear}
       </div>
       <div>
-        Выбранная дата: {day} {month} {year} {hour}:{getMinute(minute)}
+        Выбранная дата: {getValueWithZero(day)} {getValueWithZero(month)} {year} {hour}:{getValueWithZero(minute)}
       </div>
       <div className={styles.buttons}>
         <button className={styles.button} onClick={prevYear}>Prev Year</button>
@@ -157,8 +246,8 @@ const DatePickerPopupContent = ({ value, onChange, min, max }: IDatePickerProps)
                  className={isCurrentDay ? styles.dateCurrent : styles.date}
                  onClick={() => onDateSelect(cell)}
             >
-            {cell.date}
-          </div>
+              {cell.date}
+            </div>
           )
         })}
       </div>
