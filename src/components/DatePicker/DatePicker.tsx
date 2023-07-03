@@ -8,7 +8,10 @@ import {
   getMinute,
   getDaysAmountInAMonth,
   months,
-  daysOfTheWeek, getValueWithZero, getInputValueFromDate, isValidDateString
+  daysOfTheWeek,
+  addLeadingZeroIfNeeding,
+  getInputValueFromDate,
+  getDateFromInputValue
 } from './utils'
 
 interface IDatePickerProps {
@@ -18,13 +21,22 @@ interface IDatePickerProps {
   max?: Date;
 }
 
+function useLatest<T>(value: T) {
+  const valueRef = useRef(value)
 
+  useLayoutEffect(() => {
+    valueRef.current = value
+  }, [value])
+
+  return valueRef
+}
 
 
 const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
   const [showPopup, setShowPopup] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const elementRef = useRef<HTMLDivElement>(null)
+  const latestInputValue = useLatest(inputValue)
 
   useLayoutEffect(() => {
     setInputValue(getInputValueFromDate(value))
@@ -47,6 +59,10 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
         return;
       }
 
+      const dateFromInputValue = getDateFromInputValue(latestInputValue.current)
+      if (dateFromInputValue) {
+        onChange(dateFromInputValue)
+      }
       setShowPopup(false)
     }
 
@@ -58,41 +74,31 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
 
   }, [])
 
+  const handleChange = (value: Date) => {
+    onChange(value)
+    setShowPopup(false)
+  }
+
   const onInputValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value.trim())
   }
 
-  const onFocus = () => {
+  const onInputClick = () => {
     setShowPopup(true)
   }
 
   const updateValueFromInputValue = () => {
-    if (!isValidDateString(inputValue)) {
+    const date = getDateFromInputValue(inputValue)
+    if (!date) {
       return
     }
 
-    const [date, month, year] = inputValue.split('-').map(v => parseInt(v, 10))
-
-    const dateObj = new Date(year, month - 1, date)
-
-    onChange(dateObj)
+    handleChange(date)
   }
 
   const inputValueDate = useMemo(() => {
-    if (!isValidDateString(inputValue)) {
-      return
-    }
-
-    const [date, month, year] = inputValue.split('-').map(v => parseInt(v, 10))
-
-    const dateObj = new Date(year, month - 1, date)
-
-    return dateObj
+    return getDateFromInputValue(inputValue)
   }, [inputValue])
-
-  const onBlur = () => {
-    updateValueFromInputValue()
-  }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'Enter') {
@@ -109,15 +115,14 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
       <input value={inputValue}
              onChange={onInputValueChange}
              type="text"
-             onFocus={onFocus}
-             onBlur={onBlur}
+             onClick={onInputClick}
              onKeyDown={onKeyDown}
       />
 
       {showPopup && (
         <div className={styles.popup}>
           <DatePickerPopupContent selectedValue={value}
-                                  onChange={onChange}
+                                  onChange={handleChange}
                                   min={min}
                                   max={max}
                                   inputValueDate={inputValueDate}
@@ -144,7 +149,7 @@ const DatePickerPopupContent = ({
                                   onChange,
                                   min,
                                   max,
-}: IDatePickerPopupContentProps) => {
+                                }: IDatePickerPopupContentProps) => {
   const [panelYear, setPanelYear] = useState(() => selectedValue.getFullYear())
   const [panelMonth, setPanelMonth] = useState(() => selectedValue.getMonth())
   const [panelDay, setPanelDay] = useState(() => selectedValue.getDate())
@@ -184,6 +189,7 @@ const DatePickerPopupContent = ({
   }, [panelYear, panelMonth])
 
   const onDateSelect = (item: IDateCellItem) => {
+    console.log(item.year, item.month, item.date)
     onChange(new Date(item.year, item.month, item.date))
   }
 
@@ -220,7 +226,8 @@ const DatePickerPopupContent = ({
         {panelDay} {months[panelMonth]} {panelYear}
       </div>
       <div>
-        Выбранная дата: {getValueWithZero(day)} {getValueWithZero(month)} {year} {hour}:{getValueWithZero(minute)}
+        Выбранная
+        дата: {addLeadingZeroIfNeeding(day)} {addLeadingZeroIfNeeding(month)} {year} {hour}:{addLeadingZeroIfNeeding(minute)}
       </div>
       <div className={styles.buttons}>
         <button className={styles.button} onClick={prevYear}>Prev Year</button>

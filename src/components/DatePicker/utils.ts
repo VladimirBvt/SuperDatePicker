@@ -120,16 +120,32 @@ export const getMinute = (minute: number) => {
   }
 }
 
-export const getValueWithZero = (value: number) => {
-  return value > 9 ? value : `0${value}`
+export const addLeadingZeroIfNeeding = (value: number) => {
+  if (value > 9) {
+    return value.toString()
+  }
+
+  return `0${value}`
 }
 
 export const getInputValueFromDate = (value: Date) => {
-  const date = getValueWithZero(value.getDate())
-  const month = getValueWithZero(value.getMonth() + 1)
+  const date = addLeadingZeroIfNeeding(value.getDate())
+  const month = addLeadingZeroIfNeeding(value.getMonth() + 1)
   const year = value.getFullYear()
 
   return `${date}-${month}-${year}`
+}
+
+export const getDateFromInputValue = (inputValue: string) => {
+  if (!isValidDateString(inputValue)) {
+    return
+  }
+
+  const [date, month, year] = inputValue.split('-').map(v => parseInt(v, 10))
+
+  const dateObj = new Date(year, month - 1, date)
+
+  return dateObj
 }
 
 const validValueRegex = /^\d{2}-\d{2}-\d{4}$/
