@@ -11,8 +11,9 @@ import {
   daysOfTheWeek,
   addLeadingZeroIfNeeding,
   getInputValueFromDate,
-  getDateFromInputValue
+  getDateFromInputValue, isToday
 } from './utils'
+import clsx from 'clsx';
 
 interface IDatePickerProps {
   value: Date;
@@ -37,6 +38,7 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
   const [inputValue, setInputValue] = useState('')
   const elementRef = useRef<HTMLDivElement>(null)
   const latestInputValue = useLatest(inputValue)
+  const latestValue = useLatest(value)
 
   useLayoutEffect(() => {
     setInputValue(getInputValueFromDate(value))
@@ -62,6 +64,8 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
       const dateFromInputValue = getDateFromInputValue(latestInputValue.current)
       if (dateFromInputValue) {
         onChange(dateFromInputValue)
+      } else {
+        setInputValue(getInputValueFromDate(latestValue.current))
       }
       setShowPopup(false)
     }
@@ -72,7 +76,7 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
       document.removeEventListener('click', onDocumentClick)
     }
 
-  }, [])
+  }, [latestInputValue, latestValue])
 
   const handleChange = (value: Date) => {
     onChange(value)
@@ -87,15 +91,6 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
     setShowPopup(true)
   }
 
-  const updateValueFromInputValue = () => {
-    const date = getDateFromInputValue(inputValue)
-    if (!date) {
-      return
-    }
-
-    handleChange(date)
-  }
-
   const inputValueDate = useMemo(() => {
     return getDateFromInputValue(inputValue)
   }, [inputValue])
@@ -105,7 +100,15 @@ const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
       return
     }
 
-    updateValueFromInputValue()
+    const date = getDateFromInputValue(inputValue)
+
+    if (!date) {
+      setInputValue(getInputValueFromDate(value))
+    } else {
+      handleChange(date)
+    }
+
+    setShowPopup(false)
   }
 
   return (
@@ -155,6 +158,7 @@ const DatePickerPopupContent = ({
   const [panelDay, setPanelDay] = useState(() => selectedValue.getDate())
   const [panelHour, setPanelHour] = useState(() => selectedValue.getHours())
   const [panelMinute, setPanelMinute] = useState(() => selectedValue.getMinutes())
+  const todayDate = useMemo(() => new Date(), [])
 
   useLayoutEffect(() => {
     if (!inputValueDate) {
@@ -237,16 +241,25 @@ const DatePickerPopupContent = ({
       </div>
       <div className={styles.calendar}>
         {daysOfTheWeek.map(weekDay => (
-          <div key={weekDay} className={styles.date}>{weekDay}</div>
+          <div key={weekDay} className={styles.calendarPanelItem}>{weekDay}</div>
         ))}
         {dateCells.map(cell => {
-          const isCurrentDay = cell.year === year && cell.month === month && cell.date === day
+          const isSelectedDay = cell.year === year && cell.month === month && cell.date === day
+          const isTodayDate = isToday(todayDate, cell)
+          const isNotCurrent = cell.type !== 'current'
           return (
             <div key={`${cell.date}-${cell.month}-${cell.year}`}
-                 className={isCurrentDay ? styles.dateCurrent : styles.date}
+                 className={clsx(
+                   styles.calendarPanelItem,
+                   isSelectedDay && styles.calendarPanelItemSelected,
+                   isTodayDate && styles.calendarPanelItemToday,
+                   isNotCurrent && styles.calendarPanelItemNotCurrent,
+                 )}
                  onClick={() => onDateSelect(cell)}
             >
-              {cell.date}
+              <div className={styles.calendarPanelItemDate}>
+                {cell.date}
+              </div>
             </div>
           )
         })}

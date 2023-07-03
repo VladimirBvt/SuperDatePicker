@@ -29,6 +29,7 @@ export interface IDateCellItem {
   date: number;
   month: number;
   year: number;
+  type: 'prev' | 'current' | 'next';
 }
 
 export const getDaysAmountInAMonth = (year: number, month: number) => {
@@ -69,6 +70,7 @@ export const getPreviousMonthDays = (year: number, month: number) => {
       year: cellYear,
       month: cellMonth,
       date: daysAmountInPrevMonth - i,
+      type: 'prev',
     })
   }
 
@@ -92,6 +94,7 @@ export const getNextMonthDays = (year: number, month: number) => {
       year: cellYear,
       month: cellMonth,
       date: i,
+      type: 'next',
     })
   }
 
@@ -106,6 +109,7 @@ export const getCurrentMonthDays = (year: number, month: number, numberOfDays: n
       year,
       month,
       date: i,
+      type: 'current',
     })
   }
 
@@ -168,3 +172,9 @@ export const isValidDateString = (value: string) => {
 
   return true
 }
+
+export function isToday(todayDate: Date, cell: IDateCellItem) {
+  return todayDate.getFullYear() === cell.year && todayDate.getMonth() === cell.month && todayDate.getDate() === cell.date
+}
+
+
