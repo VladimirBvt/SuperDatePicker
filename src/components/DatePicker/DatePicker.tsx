@@ -1,5 +1,19 @@
-import {useMemo, useState} from "react";
+import React, {useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import styles from './DatePicker.module.scss'
+import {
+  IDateCellItem,
+  getPreviousMonthDays,
+  getCurrentMonthDays,
+  getNextMonthDays,
+  getMinute,
+  getDaysAmountInAMonth,
+  months,
+  daysOfTheWeek,
+  addLeadingZeroIfNeeding,
+  getInputValueFromDate,
+  getDateFromInputValue, isToday
+} from './utils'
+import clsx from 'clsx';
 
 interface IDatePickerProps {
   value: Date;
@@ -8,177 +22,204 @@ interface IDatePickerProps {
   max?: Date;
 }
 
-const months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Okt',
-  'Nov',
-  'Dec'
-]
+function useLatest<T>(value: T) {
+  const valueRef = useRef(value)
 
-const daysOfTheWeek = [
-  'Mon',
-  'Tue',
-  'Wed',
-  'Thu',
-  'Fri',
-  'Sat',
-  'Sun'
-]
+  useLayoutEffect(() => {
+    valueRef.current = value
+  }, [value])
 
-interface IDateCellItem {
-  date: number;
-  month: number;
-  year: number;
-
-  isToday?: boolean;
-  isSelected?: boolean;
+  return valueRef
 }
 
-const getDaysAmountInAMonth = (year: number, month: number) => {
-  const nextMonthDate = new Date(year, month + 1, 1)
-  nextMonthDate.setMinutes(-1)
-  return nextMonthDate.getDate()
-}
 
-const getPreviousMonthDays = (year: number, month: number) => {
-  const currentMonthFirstDay = new Date(year, month, 1)
-  const dayOfTheWeek = currentMonthFirstDay.getDay()
-  // сколько нужно взять дней из предыдущего месяца
-  const prevMonthCellsAmount = dayOfTheWeek -1
+const DatePicker = ({value, onChange, min, max}: IDatePickerProps) => {
+  const [showPopup, setShowPopup] = useState(false)
+  const [inputValue, setInputValue] = useState('')
+  const elementRef = useRef<HTMLDivElement>(null)
+  const latestInputValue = useLatest(inputValue)
+  const latestValue = useLatest(value)
 
-  // количество дней в предыдущем месяце
-  const daysAmountInPrevMonth = getDaysAmountInAMonth(year, month -1)
+  useLayoutEffect(() => {
+    setInputValue(getInputValueFromDate(value))
+  }, [value])
 
-  const dateCells: IDateCellItem[] = []
+  // outside click effect
+  useEffect(() => {
+    const element = elementRef.current
 
-  const [cellYear, cellMonth] = month === 0 ? [year -1, 11] : [year, month -1]
+    if (!element) return
 
-  for (let i = prevMonthCellsAmount - 1; i >= 0; i --) {
-    dateCells.push({
-      year: cellYear,
-      month: cellMonth,
-      date: daysAmountInPrevMonth - i,
-    })
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target
+
+      if (!(target instanceof Node)) {
+        return
+      }
+
+      if (element.contains(target)) {
+        return;
+      }
+
+      const dateFromInputValue = getDateFromInputValue(latestInputValue.current)
+      if (dateFromInputValue) {
+        onChange(dateFromInputValue)
+      } else {
+        setInputValue(getInputValueFromDate(latestValue.current))
+      }
+      setShowPopup(false)
+    }
+
+    document.addEventListener('click', onDocumentClick)
+
+    return () => {
+      document.removeEventListener('click', onDocumentClick)
+    }
+
+  }, [latestInputValue, latestValue])
+
+  const handleChange = (value: Date) => {
+    onChange(value)
+    setShowPopup(false)
   }
 
-  return dateCells
-}
-
-const VISIBLE_CELLS_AMOUNT = 7 * 6
-
-const getNextMonthDays = (year: number, month: number) => {
-  //
-  const currentMonthFirstDay = new Date(year, month, 1)
-  const dayOfTheWeek = currentMonthFirstDay.getDay()
-  const prevMonthCellsAmount = dayOfTheWeek -1
-  //
-
-  const daysAmount = getDaysAmountInAMonth(year, month)
-
-  const nextMonthDays = VISIBLE_CELLS_AMOUNT - daysAmount - prevMonthCellsAmount
-
-  const [cellYear, cellMonth] = month === 11 ? [year +1, 0] : [year, month +1]
-
-  const dateCells: IDateCellItem[] = []
-
-  for (let i = 1; i <= nextMonthDays; i ++) {
-    dateCells.push({
-      year: cellYear,
-      month: cellMonth,
-      date: i,
-    })
+  const onInputValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value.trim())
   }
 
-  return dateCells
-}
-
-const getCurrentMonthDays = (year: number, month: number, numberOfDays: number) => {
-  const dateCells: IDateCellItem[] = []
-
-  for (let i = 1; i <= numberOfDays; i ++) {
-    dateCells.push({
-      year,
-      month,
-      date: i,
-    })
+  const onInputClick = () => {
+    setShowPopup(true)
   }
 
-  return dateCells
+  const inputValueDate = useMemo(() => {
+    return getDateFromInputValue(inputValue)
+  }, [inputValue])
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') {
+      return
+    }
+
+    const date = getDateFromInputValue(inputValue)
+
+    if (!date) {
+      setInputValue(getInputValueFromDate(value))
+    } else {
+      handleChange(date)
+    }
+
+    setShowPopup(false)
+  }
+
+  return (
+    <div className={styles.datePicker}
+         ref={elementRef}
+    >
+      <input value={inputValue}
+             onChange={onInputValueChange}
+             type="text"
+             onClick={onInputClick}
+             onKeyDown={onKeyDown}
+      />
+
+      {showPopup && (
+        <div className={styles.popup}>
+          <DatePickerPopupContent selectedValue={value}
+                                  onChange={handleChange}
+                                  min={min}
+                                  max={max}
+                                  inputValueDate={inputValueDate}
+          />
+        </div>
+      )}
+
+    </div>
+  )
 }
 
 
-const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
-  const [fieldYear, setFieldYear] = useState(() => value.getFullYear())
-  const [fieldMonth, setFieldMonth] = useState(() => value.getMonth())
-  const [fieldDay, setFieldDay] = useState(() => value.getDate())
-  const [fieldHour, setFieldHour] = useState(() => value.getHours())
-  const [fieldMinute, setFieldMinute] = useState(() => value.getMinutes())
+interface IDatePickerPopupContentProps {
+  selectedValue: Date;
+  inputValueDate?: Date;
+  min?: Date;
+  max?: Date;
+  onChange: (value: Date) => void;
+}
+
+const DatePickerPopupContent = ({
+                                  selectedValue,
+                                  inputValueDate,
+                                  onChange,
+                                  min,
+                                  max,
+                                }: IDatePickerPopupContentProps) => {
+  const [panelYear, setPanelYear] = useState(() => selectedValue.getFullYear())
+  const [panelMonth, setPanelMonth] = useState(() => selectedValue.getMonth())
+  const [panelDay, setPanelDay] = useState(() => selectedValue.getDate())
+  const [panelHour, setPanelHour] = useState(() => selectedValue.getHours())
+  const [panelMinute, setPanelMinute] = useState(() => selectedValue.getMinutes())
+  const todayDate = useMemo(() => new Date(), [])
+
+  useLayoutEffect(() => {
+    if (!inputValueDate) {
+      return
+    }
+
+    setPanelMonth(inputValueDate.getMonth())
+    setPanelYear(inputValueDate.getFullYear())
+    setPanelDay(inputValueDate.getDate())
+  }, [inputValueDate])
 
   const [year, month, day, hour, minute] = useMemo(() => {
-    const currentYear = value.getFullYear()
-    const currentMonth = value.getMonth()
-    const currentDay = value.getDate()
-    const currentHour = value.getHours()
-    const currentMinute = value.getMinutes()
+    const currentYear = selectedValue.getFullYear()
+    const currentMonth = selectedValue.getMonth()
+    const currentDay = selectedValue.getDate()
+    const currentHour = selectedValue.getHours()
+    const currentMinute = selectedValue.getMinutes()
 
     return [currentYear, currentMonth, currentDay, currentHour, currentMinute]
-  }, [value])
+  }, [selectedValue])
 
   const dateCells = useMemo(() => {
 
-    const daysInMonth = getDaysAmountInAMonth(fieldYear, fieldMonth)
+    const daysInMonth = getDaysAmountInAMonth(panelYear, panelMonth)
 
-    const currentMonthDays = getCurrentMonthDays(fieldYear, fieldMonth, daysInMonth)
+    const currentMonthDays = getCurrentMonthDays(panelYear, panelMonth, daysInMonth)
 
-    const prevMonthDays = getPreviousMonthDays(fieldYear, fieldMonth)
-    const nextMonthDays = getNextMonthDays(fieldYear, fieldMonth)
+    const prevMonthDays = getPreviousMonthDays(panelYear, panelMonth)
+    const nextMonthDays = getNextMonthDays(panelYear, panelMonth)
 
     return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays]
-  }, [fieldYear, fieldMonth])
+  }, [panelYear, panelMonth])
 
   const onDateSelect = (item: IDateCellItem) => {
+    console.log(item.year, item.month, item.date)
     onChange(new Date(item.year, item.month, item.date))
   }
 
   const nextYear = () => {
-    setFieldYear(fieldYear + 1)
+    setPanelYear(panelYear + 1)
   }
 
   const prevYear = () => {
-    setFieldYear(fieldYear - 1)
+    setPanelYear(panelYear - 1)
   }
 
   const nextMonth = () => {
-    if (fieldMonth === 11) {
-      setFieldMonth(0)
-      setFieldYear(fieldYear + 1)
+    if (panelMonth === 11) {
+      setPanelMonth(0)
+      setPanelYear(panelYear + 1)
     } else {
-      setFieldMonth(fieldMonth + 1)
+      setPanelMonth(panelMonth + 1)
     }
   }
 
   const prevMonth = () => {
-    if (fieldMonth === 0) {
-      setFieldMonth(11)
-      setFieldYear(fieldYear - 1)
+    if (panelMonth === 0) {
+      setPanelMonth(11)
+      setPanelYear(panelYear - 1)
     } else {
-      setFieldMonth(fieldMonth - 1)
-    }
-  }
-
-  const getMinute = (minute: number) => {
-    if (minute < 10) {
-      return `0${minute}`
-    } else {
-      return minute
+      setPanelMonth(panelMonth - 1)
     }
   }
 
@@ -186,7 +227,11 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
     <div>
       DatePicker
       <div>
-        Сейчас {day} {month} {year} {hour}:{getMinute(minute)}
+        {panelDay} {months[panelMonth]} {panelYear}
+      </div>
+      <div>
+        Выбранная
+        дата: {addLeadingZeroIfNeeding(day)} {addLeadingZeroIfNeeding(month)} {year} {hour}:{addLeadingZeroIfNeeding(minute)}
       </div>
       <div className={styles.buttons}>
         <button className={styles.button} onClick={prevYear}>Prev Year</button>
@@ -196,17 +241,26 @@ const DatePicker = ({ value, onChange, min, max }: IDatePickerProps) => {
       </div>
       <div className={styles.calendar}>
         {daysOfTheWeek.map(weekDay => (
-          <div key={weekDay} className={styles.date}>{weekDay}</div>
+          <div key={weekDay} className={styles.calendarPanelItem}>{weekDay}</div>
         ))}
         {dateCells.map(cell => {
-          const isCurrentDay = cell.year === year && cell.month === month && cell.date === day
+          const isSelectedDay = cell.year === year && cell.month === month && cell.date === day
+          const isTodayDate = isToday(todayDate, cell)
+          const isNotCurrent = cell.type !== 'current'
           return (
             <div key={`${cell.date}-${cell.month}-${cell.year}`}
-                 className={isCurrentDay ? styles.dateCurrent : styles.date}
+                 className={clsx(
+                   styles.calendarPanelItem,
+                   isSelectedDay && styles.calendarPanelItemSelected,
+                   isTodayDate && styles.calendarPanelItemToday,
+                   isNotCurrent && styles.calendarPanelItemNotCurrent,
+                 )}
                  onClick={() => onDateSelect(cell)}
             >
-            {cell.date}
-          </div>
+              <div className={styles.calendarPanelItemDate}>
+                {cell.date}
+              </div>
+            </div>
           )
         })}
       </div>

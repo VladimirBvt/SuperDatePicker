@@ -5,7 +5,7 @@ const SuperDatePicker = () => {
 
   const [date, setDate] = useState(() => new Date())
 
-  console.log(date)
+  console.log(date.toDateString(), 'SuperDatePicker')
 
   return (
     <div>
